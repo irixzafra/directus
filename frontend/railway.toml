@@ -1,7 +1,8 @@
 # Railway configuration for Next.js frontend
 
 [build]
-builder = "NIXPACKS"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 healthcheckPath = "/"
