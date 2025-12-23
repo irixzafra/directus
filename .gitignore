@@ -1,0 +1,50 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Directus uploads and data
+uploads/*
+!uploads/.gitkeep
+
+# Database data (Docker volumes are external)
+postgres_data/
+redis_data/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Backups (keep structure, not content)
+backups/*
+!backups/.gitkeep
+
+# Snapshots (Directus schema snapshots)
+snapshots/*
+!snapshots/.gitkeep
+
+# Supabase
+.supabase/
+.env.supabase
+
+# Next.js
+.next/
+out/
+
+# Build
+build/
+dist/

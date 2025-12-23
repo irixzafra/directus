@@ -1,0 +1,147 @@
+{
+  "name": "Nuevo Candidato - Notificacion",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-candidate",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "new-candidate-webhook"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://directus:8055/items/candidates/{{ $json.body.key }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-candidate",
+      "name": "Get Candidate Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "directus-token",
+          "name": "Directus API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-email",
+              "leftValue": "={{ $json.data.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-valid",
+      "name": "Has Email?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidate = $input.first().json.data;\n\nconst welcomeMessage = `\n🎉 Nuevo Candidato Registrado!\n\n👤 Nombre: ${candidate.first_name} ${candidate.last_name || ''}\n📧 Email: ${candidate.email}\n🏢 Empresa: ${candidate.current_company || 'No especificada'}\n💼 Puesto: ${candidate.current_title || 'No especificado'}\n📍 Ubicacion: ${candidate.location || 'No especificada'}\n🔗 Fuente: ${candidate.source || 'Directa'}\n\n📅 Registrado: ${new Date(candidate.created_at).toLocaleString('es-ES')}\n`;\n\nreturn [{\n  json: {\n    candidate,\n    message: welcomeMessage,\n    subject: `Nuevo candidato: ${candidate.first_name} ${candidate.last_name || ''}`\n  }\n}];"
+      },
+      "id": "format-message",
+      "name": "Format Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "log-output",
+      "name": "Log Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Candidate Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Candidate Details": {
+      "main": [
+        [
+          {
+            "node": "Has Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Email?": {
+      "main": [
+        [
+          {
+            "node": "Format Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Notification": {
+      "main": [
+        [
+          {
+            "node": "Log Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "ATS",
+      "id": "ats-tag"
+    }
+  ],
+  "triggerCount": 0,
+  "pinData": {}
+}

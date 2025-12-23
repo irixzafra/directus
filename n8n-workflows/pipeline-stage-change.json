@@ -1,0 +1,162 @@
+{
+  "name": "Cambio de Etapa Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pipeline-change",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-pipeline",
+      "name": "Pipeline Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "pipeline-change-webhook"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://directus:8055/items/applications/{{ $json.body.key }}?fields=*,candidate_id.*,job_offer_id.*,pipeline_stage_id.*",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-application",
+      "name": "Get Application Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "directus-token",
+          "name": "Directus API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const app = $input.first().json.data;\nconst candidate = app.candidate_id;\nconst job = app.job_offer_id;\nconst stage = app.pipeline_stage_id;\n\nconst stageEmojis = {\n  'applied': '📝',\n  'screening': '🔍',\n  'interview': '🎤',\n  'technical': '💻',\n  'offer': '🎁',\n  'hired': '🎉',\n  'rejected': '❌'\n};\n\nconst emoji = stageEmojis[stage?.slug] || '📋';\n\nconst message = `\n${emoji} Cambio de Etapa\n\n👤 ${candidate?.first_name} ${candidate?.last_name || ''}\n💼 ${job?.title || 'Sin oferta'}\n📊 Nueva etapa: ${stage?.name || 'Desconocida'}\n\n⏰ ${new Date().toLocaleString('es-ES')}\n`;\n\nreturn [{\n  json: {\n    application: app,\n    candidate,\n    job,\n    stage,\n    message,\n    subject: `${candidate?.first_name} movido a ${stage?.name}`\n  }\n}];"
+      },
+      "id": "process-change",
+      "name": "Process Stage Change",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-hired",
+              "leftValue": "={{ $json.stage?.slug }}",
+              "rightValue": "hired",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-hired",
+      "name": "Is Hired?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst celebrationMessage = `\n🎉🎉🎉 NUEVA CONTRATACION 🎉🎉🎉\n\n${data.candidate?.first_name} ${data.candidate?.last_name || ''} ha sido contratado!\n\n💼 Posicion: ${data.job?.title}\n🏢 Departamento: ${data.job?.department || 'General'}\n📍 Ubicacion: ${data.job?.location || 'No especificada'}\n\n¡Felicidades al equipo!\n`;\n\nreturn [{\n  json: {\n    ...data,\n    celebrationMessage,\n    isHired: true\n  }\n}];"
+      },
+      "id": "celebration",
+      "name": "Celebration Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "log-change",
+      "name": "Log Change",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "Pipeline Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Application Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Application Details": {
+      "main": [
+        [
+          {
+            "node": "Process Stage Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Stage Change": {
+      "main": [
+        [
+          {
+            "node": "Is Hired?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Hired?": {
+      "main": [
+        [
+          {
+            "node": "Celebration Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "ATS",
+      "id": "ats-tag"
+    }
+  ],
+  "triggerCount": 0,
+  "pinData": {}
+}

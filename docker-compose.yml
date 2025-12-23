@@ -1,0 +1,204 @@
+services:
+  # ===========================================
+  # PostgreSQL - Base de Datos Local
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: business-os-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-directus}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-directus_password}
+      POSTGRES_DB: ${DB_DATABASE:-business_os}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-directus}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - business-os-network
+
+  # ===========================================
+  # Redis - Cache y Colas
+  # ===========================================
+  redis:
+    image: redis:8-alpine
+    container_name: business-os-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - business-os-network
+
+  # ===========================================
+  # Directus - Backend + Admin Panel
+  # ===========================================
+  directus:
+    image: directus/directus:latest
+    container_name: business-os-directus
+    restart: unless-stopped
+    ports:
+      - "8055:8055"
+    volumes:
+      - ./uploads:/directus/uploads
+      - ./extensions:/directus/extensions
+      - ./snapshots:/directus/snapshots
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Seguridad
+      SECRET: ${DIRECTUS_SECRET:-change-this-to-a-secure-random-string-min-32-chars}
+
+      # Base de Datos
+      DB_CLIENT: pg
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-business_os}
+      DB_USER: ${DB_USER:-directus}
+      DB_PASSWORD: ${DB_PASSWORD:-directus_password}
+
+      # Cache con Redis
+      CACHE_ENABLED: "true"
+      CACHE_STORE: redis
+      REDIS: redis://redis:6379
+
+      # Admin inicial
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@business-os.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
+
+      # Configuración general
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8055}
+
+      # CORS (para desarrollo)
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: "true"
+
+      # Telemetría
+      TELEMETRY: "false"
+
+      # Rate limiting
+      RATE_LIMITER_ENABLED: "true"
+      RATE_LIMITER_STORE: redis
+      RATE_LIMITER_POINTS: 100
+      RATE_LIMITER_DURATION: 1
+
+      # Webhooks (para n8n)
+      WEBHOOKS_ENABLED: "true"
+
+      # Logging
+      LOG_LEVEL: info
+    networks:
+      - business-os-network
+
+  # ===========================================
+  # n8n - Automatización de Workflows
+  # ===========================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: business-os-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      # Base de datos para n8n (usa la misma PostgreSQL)
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${DB_DATABASE:-business_os}
+      DB_POSTGRESDB_USER: ${DB_USER:-directus}
+      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD:-directus_password}
+      DB_POSTGRESDB_SCHEMA: n8n
+
+      # Encriptacion (compartida con worker)
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-business-os-n8n-encryption-key-32chars}
+
+      # Configuración general
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      GENERIC_TIMEZONE: ${TZ:-Europe/Madrid}
+
+      # Seguridad
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:-Admin123!}
+
+      # Queue Mode con Redis (mejor rendimiento)
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      QUEUE_HEALTH_CHECK_ACTIVE: "true"
+
+      # Ejecuciones
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: 168
+    networks:
+      - business-os-network
+
+  # ===========================================
+  # n8n Worker - Procesa workflows en background
+  # ===========================================
+  n8n-worker:
+    image: n8nio/n8n:latest
+    container_name: business-os-n8n-worker
+    restart: unless-stopped
+    command: worker
+    depends_on:
+      - n8n
+      - redis
+    environment:
+      # Encriptacion (compartida con main)
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-business-os-n8n-encryption-key-32chars}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${DB_DATABASE:-business_os}
+      DB_POSTGRESDB_USER: ${DB_USER:-directus}
+      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD:-directus_password}
+      DB_POSTGRESDB_SCHEMA: n8n
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      GENERIC_TIMEZONE: ${TZ:-Europe/Madrid}
+    networks:
+      - business-os-network
+
+# ===========================================
+# Volúmenes persistentes
+# ===========================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  n8n_data:
+    driver: local
+
+# ===========================================
+# Red compartida
+# ===========================================
+networks:
+  business-os-network:
+    driver: bridge
