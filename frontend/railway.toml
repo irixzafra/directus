@@ -1,0 +1,10 @@
+# Railway configuration for Next.js frontend
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 300
+numReplicas = 1
+restartPolicyType = "ON_FAILURE"
