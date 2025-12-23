@@ -1,0 +1,13 @@
+# Exclude node_modules (will be installed during build)
+node_modules
+.next
+
+# Exclude local env files
+.env.local
+
+# Exclude git
+.git
+.gitignore
+
+# Exclude docs
+README.md

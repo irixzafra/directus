@@ -1,16 +1,16 @@
-# Build stage
+# Build stage for Next.js frontend
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from frontend directory
+COPY frontend/package*.json ./
 
-# Install dependencies (use npm install since package-lock.json may not be present)
+# Install dependencies
 RUN npm install --legacy-peer-deps
 
-# Copy source
-COPY . .
+# Copy frontend source
+COPY frontend/ .
 
 # Set build-time env
 ARG NEXT_PUBLIC_DIRECTUS_URL
