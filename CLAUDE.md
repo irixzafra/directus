@@ -342,22 +342,85 @@ QUEUE_BULL_REDIS_HOST=...
 - [x] CRM: Empresas, Contactos, Oportunidades
 - [x] Pagina de configuracion
 
-### Fase 5: Produccion (PENDIENTE)
-- [ ] Crear proyecto Supabase
-- [ ] Migrar schema a Supabase
+### Fase 5: Produccion (EN PROGRESO)
+- [x] Crear proyecto Supabase (BusinessOS - Frankfurt)
+- [x] Migrar schema a Supabase (50+ tablas)
+- [x] Crear proyecto Railway (BusinessOS)
+- [x] Configurar servicios Railway (Dockerfiles)
+- [x] Subir codigo a GitHub
 - [ ] Deploy Directus en Railway
-- [ ] Deploy n8n en Railway
-- [ ] Deploy Frontend en Vercel
+- [ ] Deploy n8n + Worker en Railway
+- [ ] Deploy Frontend en Railway
 - [ ] Configurar dominios
 
 ---
 
-## Contacto
+## Produccion - Railway
 
-Si necesitas accesos o ayuda:
-- **Supabase:** Pedir credenciales al usuario
-- **Railway:** Pedir credenciales al usuario
-- **Dominios:** Pedir configuracion al usuario
+### Servicios por Tenant
+
+Cada tenant tiene su propio stack:
+
+| Servicio | Imagen/Build | Puerto |
+|----------|--------------|--------|
+| **Redis** | Railway Add-on | 6379 |
+| **Directus** | directus/directus:latest | 8055 |
+| **n8n** | n8nio/n8n:latest | 5678 |
+| **n8n-worker** | n8nio/n8n:latest | - |
+| **Frontend** | Next.js (GitHub) | 3000 |
+
+### Estructura de Carpetas
+
+```
+services/
+├── directus/
+│   ├── Dockerfile
+│   └── railway.toml
+├── n8n/
+│   ├── Dockerfile
+│   └── railway.toml
+└── n8n-worker/
+    ├── Dockerfile
+    └── railway.toml
+```
+
+### Provisionamiento de Nuevos Tenants
+
+```bash
+# Crear nuevo tenant
+./scripts/provision-tenant.sh
+
+# El script crea automaticamente:
+# 1. Proyecto Supabase con schema
+# 2. Proyecto Railway con servicios
+# 3. Variables de entorno
+# 4. Archivo de configuracion en tenants/
+```
+
+---
+
+## Credenciales Produccion
+
+### Supabase (BusinessOS)
+
+| Campo | Valor |
+|-------|-------|
+| Project Ref | hzuriwzjrwnoreschupz |
+| Region | Central EU (Frankfurt) |
+| URL | https://hzuriwzjrwnoreschupz.supabase.co |
+
+### Railway (BusinessOS)
+
+| Campo | Valor |
+|-------|-------|
+| Project ID | 80754abf-8093-4b23-a4c9-d2a69e5e07c5 |
+| Dashboard | https://railway.com/project/80754abf-8093-4b23-a4c9-d2a69e5e07c5 |
+
+### GitHub
+
+| Campo | Valor |
+|-------|-------|
+| Repo | https://github.com/irixzafra/directus |
 
 ---
 

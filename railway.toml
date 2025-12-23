@@ -1,0 +1,10 @@
+# Railway Project Configuration
+# Business OS Stack: Directus + n8n + Frontend
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+healthcheckPath = "/"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
